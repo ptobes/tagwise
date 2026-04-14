@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+*.mp3
+*.m4a
+*.m4p
+.tagwise-rename-manifest.txt
