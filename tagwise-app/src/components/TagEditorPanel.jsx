@@ -237,6 +237,12 @@ export default function TagEditorPanel({ file, directory, onClose, onSaved }) {
           }}>
             {saving ? 'Saving…' : 'Save Tags'}
           </button>
+          <button onClick={onClose} style={{
+            fontFamily: 'var(--font-mono)', fontSize: '12px',
+            padding: '8px 16px', background: 'transparent',
+            border: '1px solid var(--border-mid)', color: 'var(--text-secondary)',
+            borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+          }}>Close</button>
           {file.drm && (
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-red)', lineHeight: 1.5 }}>
               DRM — Read Only. Re-download from Apple Music as M4A to edit tags.

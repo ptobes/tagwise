@@ -24,26 +24,28 @@ export default function ScanView({ directory, onPickDir }) {
   const [tagValues, setTagValues]     = useState({})
   const [filesState, setFilesState]   = useState(null)
   const [loadingTags, setLoadingTags] = useState(false)
+  const [showOutput, setShowOutput]   = useState(false)
 
   const scanData = parseScanOutput(lines)
 
   const handleSaved = (file, values) => {
     const fullPath = directory + '/' + file.path
+    const nonEmpty = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== ''))
     setTagValues(prev => ({
       ...prev,
-      [fullPath]: { ...prev[fullPath], ...values }
+      [fullPath]: { ...prev[fullPath], ...nonEmpty }
     }))
     setFilesState(prev => {
       if (!prev) return prev
       return prev.map(f => {
         if (f.path !== file.path) return f
         const updated = { ...f, tags: { ...f.tags } }
-        if (values.title  !== undefined) updated.tags.title  = values.title  !== ''
-        if (values.artist !== undefined) updated.tags.artist = values.artist !== ''
-        if (values.album  !== undefined) updated.tags.album  = values.album  !== ''
-        if (values.year   !== undefined) updated.tags.year   = values.year   !== ''
-        if (values.track  !== undefined) updated.tags.track  = values.track  !== ''
-        if (values.genre  !== undefined) updated.tags.genre  = values.genre  !== ''
+        if (values.title  !== undefined && values.title  !== '') updated.tags.title  = true
+        if (values.artist !== undefined && values.artist !== '') updated.tags.artist = true
+        if (values.album  !== undefined && values.album  !== '') updated.tags.album  = true
+        if (values.year   !== undefined && values.year   !== '') updated.tags.year   = true
+        if (values.track  !== undefined && values.track  !== '') updated.tags.track  = true
+        if (values.genre  !== undefined && values.genre  !== '') updated.tags.genre  = true
         return updated
       })
     })
@@ -135,7 +137,24 @@ export default function ScanView({ directory, onPickDir }) {
         </div>
       )}
 
-      {lines.length > 0 && <Terminal lines={lines} status={status} />}
+      {lines.length > 0 && (
+        <div style={{ marginTop: '16px' }}>
+          <button
+            onClick={() => setShowOutput(v => !v)}
+            style={{
+              fontFamily: 'var(--font-mono)', fontSize: '11px',
+              color: 'var(--text-muted)', background: 'transparent',
+              border: 'none', cursor: 'pointer', padding: '0',
+              letterSpacing: '.04em',
+            }}
+          >
+            {showOutput ? '▾ hide output' : '▸ show output'}
+            {status === 'running' && <span style={{ marginLeft: '8px', color: 'var(--text-amber)' }}>▮</span>}
+            {status === 'error'   && <span style={{ marginLeft: '8px', color: 'var(--text-red)' }}>exit ≠ 0</span>}
+          </button>
+          {showOutput && <div style={{ marginTop: '8px' }}><Terminal lines={lines} status={status} /></div>}
+        </div>
+      )}
     </div>
   )
 }
