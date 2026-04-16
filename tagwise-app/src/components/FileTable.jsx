@@ -2,15 +2,16 @@ import { useState } from 'react'
 import TagEditorPanel from './TagEditorPanel.jsx'
 
 const COLS = [
-  { key: 'name',   label: 'File',   width: '41%' },
-  { key: 'artist', label: 'Artist', width: '13%' },
-  { key: 'album',  label: 'Album',  width: '15%' },
-  { key: 'title',  label: 'Title',  width: '5%',  tag: 'title'  },
-  { key: 'artist', label: 'Artist', width: '5%',  tag: 'artist' },
-  { key: 'year',   label: 'Year',   width: '5%',  tag: 'year'   },
-  { key: 'track',  label: 'Track#', width: '6%',  tag: 'track'  },
-  { key: 'cover',  label: 'Cover',  width: '5%',  tag: 'cover'  },
-  { key: 'genre',  label: 'Genre',  width: '5%',  tag: 'genre'  },
+  { key: 'title',    label: 'Track Name', width: '30%' },
+  { key: 'trackNum', label: 'Track #',    width: '7%'  },
+  { key: 'artist',   label: 'Artist',     width: '15%' },
+  { key: 'album',    label: 'Album',      width: '13%' },
+  { key: 'title',    label: 'Title',      width: '5%',  tag: 'title'  },
+  { key: 'artist',   label: 'Artist',     width: '5%',  tag: 'artist' },
+  { key: 'year',     label: 'Year',       width: '5%',  tag: 'year'   },
+  { key: 'track',    label: 'Track#',     width: '6%',  tag: 'track'  },
+  { key: 'cover',    label: 'Cover',      width: '5%',  tag: 'cover'  },
+  { key: 'genre',    label: 'Genre',      width: '5%',  tag: 'genre'  },
 ]
 
 const FILTERS = ['all', 'missing year', 'missing cover', 'missing genre', 'incomplete']
@@ -23,32 +24,59 @@ function countFilter(files, f) {
   return files.length
 }
 
-function sortFiles(files, sortKey, sortDir) {
+function parseTrackNum(t) {
+  if (!t) return Infinity
+  const n = parseInt(t.split('/')[0])
+  return isNaN(n) ? Infinity : n
+}
+
+function sortFiles(files, sortKey, sortDir, tagValues, directory) {
+  // Default load order: Artist → Album → Track# (numeric)
+  if (sortKey === '_default') {
+    return [...files].sort((a, b) => {
+      const aArtist = getTagVal(a, 'artist', tagValues, directory) || a.artist || ''
+      const bArtist = getTagVal(b, 'artist', tagValues, directory) || b.artist || ''
+      const artistCmp = aArtist.localeCompare(bArtist)
+      if (artistCmp !== 0) return artistCmp
+      const aAlbum = getTagVal(a, 'album', tagValues, directory) || a.album || ''
+      const bAlbum = getTagVal(b, 'album', tagValues, directory) || b.album || ''
+      const albumCmp = aAlbum.localeCompare(bAlbum)
+      if (albumCmp !== 0) return albumCmp
+      const aTrack = parseTrackNum(tagValues[directory + '/' + a.path]?.track)
+      const bTrack = parseTrackNum(tagValues[directory + '/' + b.path]?.track)
+      return aTrack - bTrack
+    })
+  }
   return [...files].sort((a, b) => {
-    const av = getSortVal(a, sortKey)
-    const bv = getSortVal(b, sortKey)
+    const av = getSortVal(a, sortKey, tagValues, directory)
+    const bv = getSortVal(b, sortKey, tagValues, directory)
     const primary = av.localeCompare(bv) * sortDir
     if (primary !== 0) return primary
     if (sortKey === 'artist') {
-      const albumCmp = (a.album ?? '').localeCompare(b.album ?? '')
+      const aAlbum = getTagVal(a, 'album', tagValues, directory)
+      const bAlbum = getTagVal(b, 'album', tagValues, directory)
+      const albumCmp = aAlbum.localeCompare(bAlbum)
       if (albumCmp !== 0) return albumCmp
-      return a.name.localeCompare(b.name)
     }
-    if (sortKey === 'album') return a.name.localeCompare(b.name)
-    return (a.artist ?? '').localeCompare(b.artist ?? '')
+    return getTagVal(a, 'title', tagValues, directory).localeCompare(getTagVal(b, 'title', tagValues, directory))
   })
 }
 
-function getSortVal(file, key) {
-  if (key === 'name')   return file.name   ?? ''
-  if (key === 'artist') return file.artist ?? ''
-  if (key === 'album')  return file.album  ?? ''
+function getTagVal(file, key, tagValues, directory) {
+  const fullPath = directory + '/' + file.path
+  return tagValues?.[fullPath]?.[key] || ''
+}
+
+function getSortVal(file, sortKey, tagValues, directory) {
+  if (sortKey === 'title')  return getTagVal(file, 'title',  tagValues, directory) || file.name
+  if (sortKey === 'artist') return getTagVal(file, 'artist', tagValues, directory) || file.artist || ''
+  if (sortKey === 'album')  return getTagVal(file, 'album',  tagValues, directory) || file.album  || ''
   return ''
 }
 
-export default function FileTable({ files, directory }) {
+export default function FileTable({ files, directory, tagValues = {}, onSaved }) {
   const [filter, setFilter]     = useState('all')
-  const [sortKey, setSortKey]   = useState('artist')
+  const [sortKey, setSortKey]   = useState('_default')
   const [sortDir, setSortDir]   = useState(1)
   const [selected, setSelected] = useState(null)
 
@@ -63,7 +91,8 @@ export default function FileTable({ files, directory }) {
     return true
   })
 
-  const sorted = sortFiles(filtered, sortKey, sortDir)
+  const sorted = sortFiles(filtered, sortKey, sortDir, tagValues, directory)
+  const hasTags = Object.keys(tagValues).length > 0
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d * -1)
@@ -76,18 +105,17 @@ export default function FileTable({ files, directory }) {
     return                    <span style={{ color: 'var(--text-red)',   fontSize: '12px' }}>✗</span>
   }
 
-  const sortable = ['name', 'artist', 'album']
+  const sortable = ['title', 'artist', 'album']
 
   return (
     <>
       <div style={{ marginTop: '28px' }}>
-        {/* Filter pills */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           {FILTERS.map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
               fontFamily: 'var(--font-mono)', fontSize: '11px',
               padding: '4px 12px', borderRadius: '20px', cursor: 'pointer',
-              border: `1px solid ${filter === f ? 'var(--accent)' : 'var(--border-mid)'}`,
+              border: filter === f ? '1px solid var(--accent)' : '1px solid var(--border-mid)',
               background: filter === f ? 'var(--accent-dim)' : 'transparent',
               color: filter === f ? 'var(--text-amber)' : 'var(--text-secondary)',
             }}>
@@ -99,12 +127,10 @@ export default function FileTable({ files, directory }) {
           </span>
         </div>
 
-        {/* Table */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          {/* Header */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
             {COLS.map((col, i) => (
-              <div key={`${col.key}-${i}`}
+              <div key={i}
                 onClick={() => !col.tag && sortable.includes(col.key) && handleSort(col.key)}
                 style={{
                   width: col.width, flexShrink: 0, padding: '8px 8px',
@@ -115,20 +141,21 @@ export default function FileTable({ files, directory }) {
                   textAlign: col.tag ? 'center' : 'left',
                 }}>
                 {col.label}
-                {!col.tag && sortKey === col.key && (
-                  <span style={{ marginLeft: '3px' }}>{sortDir === 1 ? '↑' : '↓'}</span>
-                )}
+                {!col.tag && sortKey === col.key && <span style={{ marginLeft: '3px' }}>{sortDir === 1 ? '↑' : '↓'}</span>}
               </div>
             ))}
           </div>
 
-          {/* Rows */}
           <div style={{ maxHeight: '440px', overflowY: 'auto' }}>
             {sorted.map((file, i) => {
               const isSelected = selected?.path === file.path
-              const rowBg = isSelected
-                ? 'var(--accent-dim)'
-                : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)'
+              const rowBg = isSelected ? 'var(--accent-dim)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)'
+              const fullPath = directory + '/' + file.path
+              const tv = tagValues[fullPath] || {}
+              const trackName = tv.title  || file.name
+              const artist    = tv.artist || file.artist || '—'
+              const album     = tv.album  || file.album  || '—'
+              const trackNum  = tv.track  || '—'
 
               return (
                 <div key={i}
@@ -143,34 +170,28 @@ export default function FileTable({ files, directory }) {
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-hover)' }}
                   onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = rowBg }}
                 >
-                  {/* File name */}
-                  <div style={{ width: '41%', flexShrink: 0, padding: '7px 8px', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {file.drm && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', padding: '1px 5px', background: 'rgba(208,96,96,0.2)', color: 'var(--text-red)', border: '1px solid rgba(208,96,96,0.3)', borderRadius: '3px', flexShrink: 0, letterSpacing: '.03em' }}>DRM — Read Only</span>
-                    )}
-                    {file.m4a && !file.drm && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', padding: '1px 5px', background: 'rgba(96,144,208,0.2)', color: 'var(--text-blue)', border: '1px solid rgba(96,144,208,0.3)', borderRadius: '3px', flexShrink: 0, letterSpacing: '.03em' }}>M4A</span>
-                    )}
-                    <div title={file.name} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {file.name}
+                  <div style={{ width: '30%', flexShrink: 0, padding: '7px 8px', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {file.drm && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', padding: '1px 5px', background: 'rgba(208,96,96,0.2)', color: 'var(--text-red)', border: '1px solid rgba(208,96,96,0.3)', borderRadius: '3px', flexShrink: 0 }}>DRM — Read Only</span>}
+                    {file.m4a && !file.drm && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', padding: '1px 5px', background: 'rgba(96,144,208,0.2)', color: 'var(--text-blue)', border: '1px solid rgba(96,144,208,0.3)', borderRadius: '3px', flexShrink: 0 }}>M4A</span>}
+                    <div title={trackName} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: hasTags ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {trackName}
                     </div>
                   </div>
-
-                  {/* Artist */}
-                  <div style={{ width: '13%', flexShrink: 0, padding: '7px 8px', overflow: 'hidden' }}>
-                    <div title={file.artist ?? ''} style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {file.artist ?? '—'}
+                  <div style={{ width: '7%', flexShrink: 0, padding: '7px 8px' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      {trackNum}
                     </div>
                   </div>
-
-                  {/* Album */}
                   <div style={{ width: '15%', flexShrink: 0, padding: '7px 8px', overflow: 'hidden' }}>
-                    <div title={file.album ?? ''} style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {file.album ?? '—'}
+                    <div title={artist} style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {artist}
                     </div>
                   </div>
-
-                  {/* Tag dots */}
+                  <div style={{ width: '13%', flexShrink: 0, padding: '7px 8px', overflow: 'hidden' }}>
+                    <div title={album} style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {album}
+                    </div>
+                  </div>
                   {['title','artist','year','track','cover','genre'].map(t => (
                     <div key={t} style={{ width: t === 'track' ? '6%' : '5%', flexShrink: 0, textAlign: 'center', padding: '7px 4px' }}>
                       {tagDot(file.tags[t])}
@@ -188,7 +209,7 @@ export default function FileTable({ files, directory }) {
           file={selected}
           directory={directory}
           onClose={() => setSelected(null)}
-          onSaved={() => setSelected(null)}
+          onSaved={(file, values) => { setSelected(null); onSaved?.(file, values) }}
         />
       )}
     </>

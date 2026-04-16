@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useScript } from '../hooks/useScript.js'
 import { parseScanOutput } from '../lib/parseOutput.js'
 import Terminal from './Terminal.jsx'
@@ -20,8 +21,52 @@ const TAG_ROWS = [
 
 export default function ScanView({ directory, onPickDir }) {
   const { run, lines, status, clear } = useScript()
+  const [tagValues, setTagValues]     = useState({})
+  const [filesState, setFilesState]   = useState(null)
+  const [loadingTags, setLoadingTags] = useState(false)
+
   const scanData = parseScanOutput(lines)
+
+  const handleSaved = (file, values) => {
+    const fullPath = directory + '/' + file.path
+    setTagValues(prev => ({
+      ...prev,
+      [fullPath]: { ...prev[fullPath], ...values }
+    }))
+    setFilesState(prev => {
+      if (!prev) return prev
+      return prev.map(f => {
+        if (f.path !== file.path) return f
+        const updated = { ...f, tags: { ...f.tags } }
+        if (values.title  !== undefined) updated.tags.title  = values.title  !== ''
+        if (values.artist !== undefined) updated.tags.artist = values.artist !== ''
+        if (values.album  !== undefined) updated.tags.album  = values.album  !== ''
+        if (values.year   !== undefined) updated.tags.year   = values.year   !== ''
+        if (values.track  !== undefined) updated.tags.track  = values.track  !== ''
+        if (values.genre  !== undefined) updated.tags.genre  = values.genre  !== ''
+        return updated
+      })
+    })
+  }
   const tags = scanData?.tags ?? {}
+
+  // Batch-read ID3 tag values after scan completes
+  useEffect(() => {
+    if (status !== 'done' || !scanData?.files?.length || !directory) return
+    setLoadingTags(true)
+    const filePaths = scanData.files.map(f => directory + '/' + f.path)
+    window.tagwise.readTagsBatch(filePaths).then(results => {
+      setTagValues(results)
+      setFilesState(scanData.files)
+      setLoadingTags(false)
+    })
+  }, [status])
+
+  // Clear tag values when scan is cleared
+  const handleClear = () => {
+    clear()
+    setTagValues({})
+  }
 
   const color = (pct) =>
     pct === 100 ? 'var(--text-green)' :
@@ -36,7 +81,7 @@ export default function ScanView({ directory, onPickDir }) {
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>Report tag health across your music folder</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          {lines.length > 0 && status !== 'running' && <button style={btnS} onClick={clear}>Clear</button>}
+          {lines.length > 0 && status !== 'running' && <button style={btnS} onClick={handleClear}>Clear</button>}
           <button
             style={{ ...btnP, opacity: (!directory || status === 'running') ? 0.4 : 1 }}
             onClick={() => directory && run('tagwise-scan.js', [directory])}
@@ -64,6 +109,9 @@ export default function ScanView({ directory, onPickDir }) {
                 {scanData.drm} DRM — Read Only
               </span>
             )}
+            {loadingTags && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>reading tags…</span>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '8px' }}>
@@ -83,7 +131,7 @@ export default function ScanView({ directory, onPickDir }) {
             })}
           </div>
 
-          <FileTable files={scanData.files} directory={directory} />
+          <FileTable files={filesState || scanData.files} directory={directory} tagValues={tagValues} onSaved={handleSaved} />
         </div>
       )}
 

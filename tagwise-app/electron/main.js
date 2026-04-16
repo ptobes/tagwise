@@ -9,9 +9,9 @@ const SCRIPTS_DIR = path.join(os.homedir(), 'tagwise')
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
-    height: 800,
+    height: 950,
     minWidth: 960,
-    minHeight: 600,
+    minHeight: 700,
     backgroundColor: '#0f0f0e',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
@@ -23,6 +23,7 @@ function createWindow() {
   })
   if (isDev) {
     win.loadURL('http://localhost:5173')
+    win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
@@ -125,4 +126,24 @@ ipcMain.handle('file:readTags', async (_event, { filePath }) => {
   } catch (e) {
     return { title: '', artist: '', album: '', year: '', track: '', genre: '' }
   }
+})
+
+ipcMain.handle('file:readTagsBatch', async (_event, { filePaths }) => {
+  const results = {}
+  for (const filePath of filePaths) {
+    try {
+      const tags = id3.read(filePath)
+      results[filePath] = {
+        title:  tags.title       || '',
+        artist: tags.artist      || '',
+        album:  tags.album       || '',
+        year:   tags.year        || '',
+        track:  tags.trackNumber || '',
+        genre:  tags.genre       || '',
+      }
+    } catch (e) {
+      results[filePath] = { title: '', artist: '', album: '', year: '', track: '', genre: '' }
+    }
+  }
+  return results
 })

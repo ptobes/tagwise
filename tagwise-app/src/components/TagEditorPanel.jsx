@@ -88,7 +88,7 @@ export default function TagEditorPanel({ file, directory, onClose, onSaved }) {
       ? { ok: true,  text: 'Tags saved.' }
       : { ok: false, text: result.error || 'Save failed.' }
     )
-    if (result.ok) onSaved?.(file, values)
+    if (result.ok) { console.log("[onSaved] values:", values); onSaved?.(file, values) }
   }
 
   const handleImageFile = useCallback((imgFile) => {
@@ -152,6 +152,32 @@ export default function TagEditorPanel({ file, directory, onClose, onSaved }) {
           </div>
         </div>
 
+        {/* Tag fields */}
+        <div style={{ padding: '16px 20px', flex: 1 }}>
+          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '14px' }}>Tags</div>
+          {loading ? (
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', padding: '20px 0' }}>Loading…</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {FIELDS.map(({ key, label }) => (
+                <div key={key}>
+                  <label style={{ display: 'block', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '5px' }}>
+                    {label}
+                  </label>
+                  <input
+                    type="text"
+                    value={values[key] ?? ''}
+                    onChange={(e) => handleChange(key, e.target.value)}
+                    style={inputStyle}
+                    onFocus={e  => e.target.style.borderColor = 'var(--accent)'}
+                    onBlur={e   => e.target.style.borderColor = 'var(--border-mid)'}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Cover art */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Cover Art</div>
@@ -195,35 +221,9 @@ export default function TagEditorPanel({ file, directory, onClose, onSaved }) {
           </div>
         </div>
 
-        {/* Tag fields */}
-        <div style={{ padding: '16px 20px', flex: 1 }}>
-          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '14px' }}>Tags</div>
-          {loading ? (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)', padding: '20px 0' }}>Loading…</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {FIELDS.map(({ key, label }) => (
-                <div key={key}>
-                  <label style={{ display: 'block', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '5px' }}>
-                    {label}
-                  </label>
-                  <input
-                    type="text"
-                    value={values[key] ?? ''}
-                    onChange={(e) => handleChange(key, e.target.value)}
-                    style={inputStyle}
-                    onFocus={e  => e.target.style.borderColor = 'var(--accent)'}
-                    onBlur={e   => e.target.style.borderColor = 'var(--border-mid)'}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Rename preview */}
+        {/* Filename Preview */}
         <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
-          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '6px' }}>Rename preview</div>
+          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '6px' }}>Filename Preview</div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-amber)', wordBreak: 'break-all', lineHeight: 1.5 }}>{rename}</div>
         </div>
 
