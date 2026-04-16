@@ -46,8 +46,9 @@ tagwise-app/
 │   ├── components/
 │   │   ├── Sidebar.jsx         — Navigation + directory picker
 │   │   ├── ScanView.jsx        — Scan dashboard, tag health grid, file table
-│   │   ├── FileTable.jsx       — Sortable/filterable file table with tag dot indicators
-│   │   ├── TagEditorPanel.jsx  — Slide-in tag editor with cover art, filename preview
+│   │   ├── FileTable.jsx       — Sortable/filterable file table with tag dot indicators and row selection
+│   │   ├── TagEditorPanel.jsx  — Slide-in tag editor for single files with cover art and filename preview
+│   │   ├── BulkEditPanel.jsx   — Slide-in bulk tag editor for multiple selected files
 │   │   ├── Terminal.jsx        — Streaming script output pane with y/n confirm buttons
 │   │   ├── FixView.jsx         — Fix Tags view (tagwise-fix.js)
 │   │   ├── CoverTypeView.jsx   — Cover Type fix view (tagwise-fix-covertype.js)
@@ -89,31 +90,44 @@ The primary view. Workflow:
 
 1. Select a music folder via the `⌂` button in the sidebar
 2. Click **Run Scan** to run `tagwise-scan.js`
-3. The tag health dashboard populates with 7-column coverage stats
-4. After the scan completes, ID3 tags are batch-read for all files
-5. The file table populates with real tag values (Track Name, Track #, Artist, Album)
+3. The tag health dashboard populates with 7-column coverage stats (Title, Artist, Album, Track#, Year, Cover, Genre)
+4. After the scan completes, ID3 tags are batch-read for all files via `readTagsBatch`
+5. The file table populates with real ID3 values (Track Name, Track #, Artist, Album)
 6. Use filter pills to isolate files missing year, cover, genre, or any incomplete files
-7. Click any row to open the **Tag Editor** panel
+7. Click rows to select files, then use the **Edit** or **Edit X files** button to open the tag editor
 
 ### File Table
 
 - Default sort: Artist → Album → Track # (numeric)
-- Click column headers to re-sort
-- Filter pills: all / missing year / missing cover / missing genre / incomplete
-- DRM files (M4P) show a red **DRM — Read Only** badge
+- Click column headers to re-sort (Track Name, Artist, Album)
+- Filter pills: all / missing year / missing cover / missing genre / incomplete — with counts
+- Checkbox on each row for selection; checkbox in header toggles select all/none
+- DRM files (M4P) show a red **DRM** badge
 - M4A files show a blue **M4A** badge
+- Terminal output hidden by default — use **▸ show output** toggle to expand
 
-### Tag Editor Panel
+### Single File Tag Editor
 
-- Opens on row click, closes on Escape or backdrop click
+- Select 1 file and click **Edit** to open
 - Reads real ID3 tags from the file on open
-- Falls back to filename parsing if tags are missing
 - Fields: Title, Artist, Album, Year, Track#, Genre
-- Cover art: drop, click, or paste from clipboard
+- Cover art: display current art, drop/click/paste to replace
 - **Save Tags** writes immediately via node-id3
 - **Save Cover** rewrites cover art as APIC type 3
-- Table updates live after saving — no re-scan needed
+- **Filename Preview** shows the resulting filename based on current tag values
+- Table row updates live after saving — no re-scan needed
 - DRM files: Save Tags button is disabled
+
+### Bulk Tag Editor
+
+- Select 2+ files and click **Edit X files** to open
+- Fields pre-filled where all selected files share the same value
+- Blank fields indicate inconsistent values across the selection
+- Only fields the user explicitly edits are written — pre-filled unchanged fields are skipped
+- Confirmation step shows exactly which fields will be written to how many files
+- Progress bar with X/Y counter during save
+- After save, button changes to **Close**
+- All affected table rows update live after saving
 
 ---
 
@@ -143,7 +157,8 @@ A backup manifest is written to `.tagwise-rename-manifest.txt` in the music fold
 
 ## Known Limitations
 
-- **M4P files (DRM)** — tags are read-only. Re-download from Apple Music as M4A to unlock
-- **M4A files** — cover art cannot be written with node-id3. Other tags work fine
+- **M4P files (DRM)** — tags are read-only. Re-download from Apple Music as M4A to unlock. Save Tags button is disabled in the editor for DRM files.
+- **M4A files** — cover art cannot be written with node-id3. Other tags work fine.
 - **Dashboard stats** — reflect the last scan only; editing tags updates the file table live but not the percentage bars
 - **Bootlegs / unofficial releases** — will not match on Discogs in Fix Tags; expected behavior
+- **Bulk cover art editing** — not currently supported in the bulk editor; edit cover art per-file using the single file editor
