@@ -5,8 +5,8 @@ import Terminal from './Terminal.jsx'
 const btnP = { fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 500, padding: '8px 18px', background: 'var(--accent)', color: '#0f0f0e', borderRadius: 'var(--radius-sm)', letterSpacing: '.04em', cursor: 'pointer', border: 'none' }
 const btnS = { fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '8px 14px', border: '1px solid var(--border-mid)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'transparent' }
 
-export default function RenameView({ directory, onPickDir }) {
-  const { run, send, lines, status, clear } = useScript()
+export default function RenameView({ directory, onPickDir, script }) {
+  const { run, send, lines, status, clear } = script
   const [mode, setMode] = useState('dry')
   const collisions = lines.filter(l => /collision/i.test(l.data)).length
 

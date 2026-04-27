@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useScript } from '../hooks/useScript.js'
 import { parseScanOutput } from '../lib/parseOutput.js'
 import Terminal from './Terminal.jsx'
 import FileTable from './FileTable.jsx'
@@ -19,8 +18,8 @@ const TAG_ROWS = [
   { key: 'genre',  label: 'Genre'  },
 ]
 
-export default function ScanView({ directory, onPickDir }) {
-  const { run, lines, status, clear } = useScript()
+export default function ScanView({ directory, onPickDir, script }) {
+  const { run, lines, status, clear } = script
   const [tagValues, setTagValues]     = useState({})
   const [filesState, setFilesState]   = useState(null)
   const [loadingTags, setLoadingTags] = useState(false)
